@@ -1,14 +1,12 @@
 use super::{Hit, Material};
 use crate::{Color, Ray, Vec3};
 
-use std::rc::Rc;
-
 pub struct Lambertian {
     pub albedo: Color,
 }
 
 impl Material for Lambertian {
-    fn scatter(self: Rc<Self>, _: &Ray, hit: &Hit) -> Option<(Color, Ray)> {
+    fn scatter(&self, _: &Ray, hit: &Hit) -> Option<(Color, Ray)> {
         let scatter_direction = {
             let dir: Vec3 = hit.normal + Vec3::random_unit_vec(&mut rand::thread_rng());
 
@@ -44,7 +42,7 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter(self: Rc<Self>, ray: &Ray, hit: &Hit) -> Option<(Color, Ray)> {
+    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<(Color, Ray)> {
         let reflected = reflect(&ray.direction, &hit.normal); // Maybe normalize direction??
 
         // Optimization in case there is no fuzz
@@ -74,7 +72,7 @@ pub struct Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter(self: Rc<Self>, ray: &Ray, hit: &Hit) -> Option<(Color, Ray)> {
+    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<(Color, Ray)> {
         let refraction_ratio = if hit.front_face {
             1.0 / self.ri
         } else {

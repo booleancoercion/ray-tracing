@@ -50,7 +50,7 @@ impl Camera {
         let viewport_width = aspect_ratio * viewport_height;
 
         let w = (look_from - look_at).normalize();
-        let u = vup.cross(&w);
+        let u = vup.cross(&w).normalize();
         let v = w.cross(&u);
 
         let origin = look_from;

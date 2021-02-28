@@ -1,6 +1,6 @@
-use std::rc::Rc;
-
 use crate::{Color, Point3, Vec3};
+
+use std::sync::Arc;
 
 pub mod materials;
 pub mod objects;
@@ -26,7 +26,7 @@ pub struct Hit {
     pub normal: Vec3,
     pub t: f64,
     pub front_face: bool,
-    pub material: Rc<dyn Material>,
+    pub material: Arc<dyn Material>,
 }
 
 impl Hit {
@@ -34,7 +34,7 @@ impl Hit {
         ray: &Ray,
         outward_normal: Vec3,
         t: f64,
-        material: Rc<dyn Material>,
+        material: Arc<dyn Material>,
     ) -> Self {
         let front_face = ray.direction.dot(&outward_normal) < 0.0;
         let normal = if front_face {
@@ -72,6 +72,12 @@ impl<T: Hittable> Hittable for [T] {
     }
 }
 
-pub trait Material {
-    fn scatter(self: Rc<Self>, ray: &Ray, hit: &Hit) -> Option<(Color, Ray)>;
+impl<T: Hittable> Hittable for Vec<T> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<Hit> {
+        (&self[..]).hit(ray, t_min, t_max)
+    }
+}
+
+pub trait Material: Send + Sync {
+    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<(Color, Ray)>;
 }

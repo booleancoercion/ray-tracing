@@ -1,13 +1,13 @@
-use std::rc::Rc;
-
 use super::{Hit, Hittable, Material, Ray};
 use crate::{Point3, Vec3};
+
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Sphere {
     pub center: Point3,
     pub radius: f64,
-    pub material: Rc<dyn Material>,
+    pub material: Arc<dyn Material>,
 }
 
 impl Hittable for Sphere {
