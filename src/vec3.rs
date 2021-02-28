@@ -67,8 +67,20 @@ impl Vec3 {
         }
     }
 
-    pub fn random_unit<R: rand::Rng + ?Sized>(rng: &mut R) -> Self {
+    #[inline(always)]
+    pub fn random_unit_vec<R: rand::Rng + ?Sized>(rng: &mut R) -> Self {
         Self::random_in_unit_sphere(rng).normalize()
+    }
+
+    pub fn random_in_unit_disk<R: rand::Rng + ?Sized>(rng: &mut R) -> Self {
+        loop {
+            let x = rng.gen_range(-1.0..1.0);
+            let y = rng.gen_range(-1.0..1.0);
+            let candidate = Self([x, y, 0.0]);
+            if candidate.length_squared() < 1.0 {
+                return candidate;
+            }
+        }
     }
 
     #[inline(always)]

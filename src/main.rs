@@ -62,19 +62,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Camera
 
-    let camera = {
-        let viewport_height = 2.0;
-        let viewport_width = ASPECT_RATIO * viewport_height;
-        let focal_length = 2.0;
+    let look_from = Point3::new(3.0, 3.0, 2.0);
+    let look_at = Point3::new(0.0, 0.0, -1.0);
+    let vup = Vec3::new(0.0, 1.0, 0.0);
 
-        let origin = Point3::new(0.0, 0.0, 2.0);
-        let horizontal = Vec3::new(viewport_width, 0.0, 0.0);
-        let vertical = Vec3::new(0.0, viewport_height, 0.0);
-        let lower_left_corner =
-            origin - horizontal / 2.0 - vertical / 2.0 - Vec3::new(0.0, 0.0, focal_length);
+    let dist_to_focus = (look_from - look_at).length();
+    let aperture = 2.0;
 
-        Camera::new(origin, lower_left_corner, horizontal, vertical)
-    };
+    let camera = Camera::new(
+        look_from,
+        look_at,
+        vup,
+        20.0,
+        ASPECT_RATIO,
+        aperture,
+        dist_to_focus,
+    );
 
     // Render
 

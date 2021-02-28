@@ -10,7 +10,7 @@ pub struct Lambertian {
 impl Material for Lambertian {
     fn scatter(self: Rc<Self>, _: &Ray, hit: &Hit) -> Option<(Color, Ray)> {
         let scatter_direction = {
-            let dir: Vec3 = hit.normal + Vec3::random_unit(&mut rand::thread_rng());
+            let dir: Vec3 = hit.normal + Vec3::random_unit_vec(&mut rand::thread_rng());
 
             // Catch degenerate scatter direction
             if dir.near_zero() {
