@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 rand = "0.8.3"
+image = "0.23.13"
 
 [profile.release]
 opt-level = 3
