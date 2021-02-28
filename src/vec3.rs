@@ -46,11 +46,11 @@ impl Vec3 {
 
     #[inline(always)]
     pub fn cross(&self, other: &Self) -> Self {
-        return Self([
+        Self([
             self.0[1] * other.0[2] - self.0[2] * other.0[1],
             self.0[2] * other.0[0] - self.0[0] * other.0[2],
             self.0[0] * other.0[1] - self.0[1] * other.0[0],
-        ]);
+        ])
     }
 
     #[inline(always)]

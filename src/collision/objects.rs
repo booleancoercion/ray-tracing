@@ -18,6 +18,7 @@ impl Hittable for Sphere {
         let half_b = oc.dot(&ray.direction);
         let c = oc.length_squared() - self.radius * self.radius;
 
+        #[allow(clippy::suspicious_operation_groupings)]
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
             return None;

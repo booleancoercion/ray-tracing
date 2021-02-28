@@ -17,16 +17,16 @@ pub const IMG_WIDTH: u32 = 1200;
 pub const IMG_HEIGHT: u32 = (IMG_WIDTH as f64 / ASPECT_RATIO) as u32;
 pub const SAMPLES_PER_PIXEL: u32 = 10;
 pub const MAX_DEPTH: i32 = 500;
-pub const NUM_THREADS: u32 = 10;
 
 type Rgb = GenericRgb<u8>;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut rand = rand::thread_rng();
+    let threads = num_cpus::get() as u32;
 
     // World
 
     let world = {
+        let mut rand = rand::thread_rng();
         let mut world = Vec::new();
 
         let ground_material = Arc::new(Lambertian {
@@ -122,8 +122,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, rx) = mpsc::channel();
 
-    for tid in 0..NUM_THREADS {
-        generate_thread(tid, tx.clone(), camera.clone(), world.clone());
+    for tid in 0..threads {
+        generate_thread(tid, threads, tx.clone(), camera.clone(), world.clone());
     }
 
     drop(tx); // the extra sender would cause a deadlock in the current thread
@@ -149,6 +149,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn generate_thread<T>(
     id: u32,
+    threads: u32,
     sender: Sender<(u32, [Rgb; IMG_WIDTH as usize])>,
     camera: Arc<Camera>,
     world: Arc<T>,
@@ -161,11 +162,11 @@ where
     thread::spawn(move || {
         let mut rand = rand::thread_rng();
 
-        for jdx in (0..IMG_HEIGHT).filter(|x| x.rem_euclid(NUM_THREADS) == id) {
+        for jdx in (0..IMG_HEIGHT).filter(|x| x.rem_euclid(threads) == id) {
             let j = jdx as f64;
 
             let mut row: [MaybeUninit<Rgb>; SIZE] = unsafe { MaybeUninit::uninit().assume_init() };
-            for idx in 0..SIZE {
+            for (idx, elem) in row.iter_mut().enumerate() {
                 let i = idx as f64;
 
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
@@ -179,7 +180,7 @@ where
                 }
 
                 let rgb = color_to_rgb(pixel_color, SAMPLES_PER_PIXEL);
-                row[idx] = MaybeUninit::new(rgb);
+                *elem = MaybeUninit::new(rgb);
             }
 
             let row = unsafe { std::mem::transmute::<_, [Rgb; SIZE]>(row) };
