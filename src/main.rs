@@ -15,8 +15,8 @@ use std::thread::{self, JoinHandle};
 pub const ASPECT_RATIO: f64 = 3.0 / 2.0;
 pub const IMG_WIDTH: u32 = 1200;
 pub const IMG_HEIGHT: u32 = (IMG_WIDTH as f64 / ASPECT_RATIO) as u32;
-pub const SAMPLES_PER_PIXEL: u32 = 500;
-pub const MAX_DEPTH: i32 = 50;
+pub const SAMPLES_PER_PIXEL: u32 = 10;
+pub const MAX_DEPTH: i32 = 500;
 pub const NUM_THREADS: u32 = 10;
 
 type Rgb = GenericRgb<u8>;
@@ -122,20 +122,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (tx, rx) = mpsc::channel();
 
-    let mut handles = vec![];
     for tid in 0..NUM_THREADS {
-        handles.push(generate_thread(
-            tid,
-            tx.clone(),
-            camera.clone(),
-            world.clone(),
-        ));
+        generate_thread(tid, tx.clone(), camera.clone(), world.clone());
     }
+
+    drop(tx); // the extra sender would cause a deadlock in the current thread
 
     let mut buf = ImageBuffer::new(IMG_WIDTH, IMG_HEIGHT);
     let mut stderr = std::io::stderr();
     let mut count = IMG_HEIGHT;
     while let Ok((posy, row)) = rx.recv() {
+        let posy = IMG_HEIGHT - posy - 1;
         count -= 1;
         eprint!("\rScanlines remaining: {} ", count);
         stderr.flush()?;
@@ -164,10 +161,7 @@ where
     thread::spawn(move || {
         let mut rand = rand::thread_rng();
 
-        for jdx in (0..IMG_HEIGHT)
-            .rev()
-            .filter(|x| x.rem_euclid(NUM_THREADS) == id)
-        {
+        for jdx in (0..IMG_HEIGHT).filter(|x| x.rem_euclid(NUM_THREADS) == id) {
             let j = jdx as f64;
 
             let mut row: [MaybeUninit<Rgb>; SIZE] = unsafe { MaybeUninit::uninit().assume_init() };
