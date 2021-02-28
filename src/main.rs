@@ -15,8 +15,8 @@ use std::thread::{self, JoinHandle};
 pub const ASPECT_RATIO: f64 = 3.0 / 2.0;
 pub const IMG_WIDTH: u32 = 1200;
 pub const IMG_HEIGHT: u32 = (IMG_WIDTH as f64 / ASPECT_RATIO) as u32;
-pub const SAMPLES_PER_PIXEL: u32 = 10;
-pub const MAX_DEPTH: i32 = 500;
+pub const SAMPLES_PER_PIXEL: u32 = 500;
+pub const MAX_DEPTH: i32 = 50;
 
 type Rgb = GenericRgb<u8>;
 
