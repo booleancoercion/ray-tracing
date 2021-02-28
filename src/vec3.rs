@@ -59,28 +59,31 @@ impl Vec3 {
     }
 
     pub fn random_in_unit_sphere<R: rand::Rng + ?Sized>(rng: &mut R) -> Self {
-        loop {
-            let candidate = rng.gen::<Vec3>() * 2.0 - Vec3::new(1.0, 1.0, 1.0);
-            if candidate.length_squared() < 1.0 {
-                return candidate;
-            }
-        }
+        let r: f64 = rng.gen();
+
+        r * Self::random_unit_vec(rng)
     }
 
-    #[inline(always)]
     pub fn random_unit_vec<R: rand::Rng + ?Sized>(rng: &mut R) -> Self {
-        Self::random_in_unit_sphere(rng).normalize()
+        let z: f64 = rng.gen_range(-1.0..1.0);
+
+        let sin_theta = (1.0 - z * z).sqrt();
+        let phi: f64 = rng.gen_range(0.0..std::f64::consts::TAU);
+
+        let cos_phi = phi.cos();
+
+        let x = sin_theta * cos_phi;
+        let y = sin_theta * (1.0 - cos_phi * cos_phi).sqrt();
+
+        Self([x, y, z])
     }
 
     pub fn random_in_unit_disk<R: rand::Rng + ?Sized>(rng: &mut R) -> Self {
-        loop {
-            let x = rng.gen_range(-1.0..1.0);
-            let y = rng.gen_range(-1.0..1.0);
-            let candidate = Self([x, y, 0.0]);
-            if candidate.length_squared() < 1.0 {
-                return candidate;
-            }
-        }
+        let x: f64 = rng.gen_range(-1.0..1.0);
+        let y = (1.0 - x * x).sqrt();
+        let r: f64 = rng.gen();
+
+        Self([r * x, r * y, 0.0])
     }
 
     #[inline(always)]
