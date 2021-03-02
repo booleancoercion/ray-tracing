@@ -78,6 +78,12 @@ impl<T: Hittable> Hittable for Vec<T> {
     }
 }
 
+impl<T: Hittable + ?Sized> Hittable for Arc<T> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<Hit> {
+        (**self).hit(ray, t_min, t_max)
+    }
+}
+
 pub trait Material: Send + Sync {
     fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<(Color, Ray)>;
 }

@@ -1,3 +1,4 @@
+use nalgebra::Vector3;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
@@ -228,5 +229,17 @@ impl SubAssign for Vec3 {
     #[inline(always)]
     fn sub_assign(&mut self, rhs: Self) {
         *self += -rhs
+    }
+}
+
+impl From<Vec3> for Vector3<f64> {
+    fn from(v: Vec3) -> Self {
+        Vector3::from(v.0)
+    }
+}
+
+impl From<Vector3<f64>> for Vec3 {
+    fn from(v: Vector3<f64>) -> Self {
+        Self([v.x, v.y, v.z])
     }
 }
