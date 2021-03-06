@@ -15,13 +15,14 @@ use std::thread::{self, JoinHandle};
 pub const ASPECT_RATIO: f64 = 16.0 / 9.0;
 pub const IMG_WIDTH: u32 = 800;
 pub const IMG_HEIGHT: u32 = (IMG_WIDTH as f64 / ASPECT_RATIO) as u32;
-pub const SAMPLES_PER_PIXEL: u32 = 100;
+pub const SAMPLES_PER_PIXEL: u32 = 500;
 pub const MAX_DEPTH: i32 = 50;
 
 type Rgb = GenericRgb<u8>;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let threads = num_cpus::get() as u32;
+    eprintln!("Detected {} cores.", threads);
 
     // World
 
@@ -34,10 +35,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let red_diffuse = Arc::new(Lambertian {
             albedo: Color::new(0.8, 0.1, 0.1),
         });
-        let glass = Arc::new(Dielectric { ri: 1.3 });
-        let air_glass = Arc::new(Dielectric { ri: 1.0 });
+        let blue_diffuse = Arc::new(Lambertian {
+            albedo: Color::new(0.1, 0.1, 0.8),
+        });
+        let glass = Arc::new(Dielectric { ri: 1.5 });
+        let anti_glass = Arc::new(Dielectric { ri: 1.0 / 1.3 });
+        let metal = Arc::new(Metal::new(Color::new(1.0, 1.0, 1.0), 0.1));
 
         world.push(Arc::new(Sphere {
+            // ground
             center: Point3::new(0.0, -100.5, 0.0),
             radius: 100.0,
             material: yellow_diffuse,
@@ -46,24 +52,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         world.push(Arc::new(Sphere {
             center: Point3::new(0.0, 0.0, -1.5),
             radius: 0.5,
-            material: red_diffuse,
+            material: blue_diffuse,
         }));
 
         world.push(Arc::new(Parallelogram::new(
-            Point3::new(0.5, 0.25, -0.1),
-            Vec3::new(0.75, 0.0, -0.25),
-            Vec3::new(0.25, -0.75, -0.25),
-            Vec3::new(0.25, 0.0, -0.75),
+            Point3::new(0.5, -0.5, -1.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            Vec3::new(0.0, 1.0, 0.0),
+            Vec3::new(0.0, 0.0, -1.0),
             glass,
         )));
 
+        world.push(Arc::new(Sphere {
+            center: Point3::new(1.0, 0.0, -1.5),
+            radius: 0.3,
+            material: red_diffuse,
+        }));
+
+        /*
         world.push(Arc::new(Parallelogram::new(
-            Point3::new(0.6, 0.15, -0.2),
-            Vec3::new(0.65, 0.0, -0.15),
-            Vec3::new(0.15, -0.65, -0.15),
-            Vec3::new(0.15, 0.0, -0.65),
-            air_glass,
+            Point3::new(0.6, -0.4, -1.1),
+            Vec3::new(0.8, 0.0, 0.0),
+            Vec3::new(0.0, 0.8, 0.0),
+            Vec3::new(0.0, 0.0, -0.8),
+            anti_glass,
         )));
+        */
 
         Arc::new(world)
     };
@@ -80,10 +94,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     */
 
     let camera = Arc::new(Camera::new(
-        Point3::new(-1.0, 1.0, 2.0),
-        Point3::new(0.0, 0.0, 0.0),
+        Point3::new(4.0, 1.3, 2.2),
+        Point3::new(1.0, 0.0, -1.5),
         Vec3::new(0.0, 1.0, 0.0),
-        45.0,
+        20.0,
         ASPECT_RATIO,
         0.0,
         1.0,
