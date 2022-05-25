@@ -5,12 +5,12 @@ use ray_tracing::*;
 use image::ImageBuffer;
 use image::Rgb as GenericRgb;
 use rand::Rng;
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+use rayon::slice::ParallelSliceMut;
 
-use std::io::Write;
-use std::mem::MaybeUninit;
-use std::sync::mpsc::{self, Sender};
+use std::io::{self, Write};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
-use std::thread::{self, JoinHandle};
 
 pub const ASPECT_RATIO: f64 = 16.0 / 9.0;
 pub const IMG_WIDTH: u32 = 800;
@@ -39,89 +39,83 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let aperture = 0.1;
     */
 
-    let camera = Arc::new(Camera::new(
-        Point3::new(8.0, 2.6, 4.4),
+    let camera = Camera::new(
+        Point3::new(4.0, 2.6, 2.2),
         Point3::new(1.0, 0.0, -1.5),
         Vec3::new(0.0, 1.0, 0.0),
         20.0,
         ASPECT_RATIO,
         0.0,
         1.0,
-    ));
+    );
 
     // Render
 
-    let (tx, rx) = mpsc::channel();
+    //let mut buf = ImageBuffer::new(IMG_WIDTH, IMG_HEIGHT);
+    let mut buf: Vec<Rgb> = vec![Rgb::from([0, 0, 0]); (IMG_WIDTH * IMG_HEIGHT) as usize];
 
-    for tid in 0..threads {
-        generate_thread(tid, threads, tx.clone(), camera.clone(), world.clone());
-    }
+    let chunk_size = ((IMG_HEIGHT * IMG_WIDTH) / threads as u32) as usize;
 
-    drop(tx); // the extra sender would cause a deadlock in the current thread
+    let linesleft = AtomicI32::new(IMG_HEIGHT as i32);
+    buf.par_chunks_mut(chunk_size).enumerate().for_each_init(
+        || (rand::thread_rng(), camera.clone(), world.clone()),
+        |(rng, camera, world), (num, chunk)| {
+            let offset = chunk_size * num;
 
-    let mut buf = ImageBuffer::new(IMG_WIDTH, IMG_HEIGHT);
-    let mut stderr = std::io::stderr();
-    let mut count = IMG_HEIGHT;
-    while let Ok((posy, row)) = rx.recv() {
-        let posy = IMG_HEIGHT - posy - 1;
-        count -= 1;
-        eprint!("\rScanlines remaining: {} ", count);
-        stderr.flush()?;
-        for (posx, &pixel) in row.iter().enumerate() {
-            buf.put_pixel(posx as u32, posy, pixel);
+            let mut row = offset / IMG_WIDTH as usize;
+            let mut col = offset.rem_euclid(IMG_WIDTH as usize);
+            for pixel in chunk.iter_mut() {
+                // calculate
+                *pixel = calculate_pixel(row, col, camera, world, rng);
+                // update indices
+                col += 1;
+                if col == IMG_WIDTH as usize {
+                    col = 0;
+                    row += 1;
+                    let lines = linesleft.load(Ordering::SeqCst) - 1;
+                    linesleft.store(lines, Ordering::SeqCst);
+
+                    eprint!("\rScanlines remaining: {} ", lines);
+                    let _ = io::stderr().flush();
+                }
+            }
+        },
+    );
+
+    let mut imgbuf = ImageBuffer::new(IMG_WIDTH, IMG_HEIGHT);
+    let mut idx = 0;
+
+    for row in (0..IMG_HEIGHT).rev() {
+        for col in 0..IMG_WIDTH {
+            imgbuf.put_pixel(col, row, buf[idx]);
+            idx += 1;
         }
     }
-
-    buf.save("output.png")?;
+    imgbuf.save("output.png")?;
 
     eprintln!("\nDone.");
     Ok(())
 }
 
-fn generate_thread<T>(
-    id: u32,
-    threads: u32,
-    sender: Sender<(u32, [Rgb; IMG_WIDTH as usize])>,
-    camera: Arc<Camera>,
-    world: Arc<T>,
-) -> JoinHandle<()>
+fn calculate_pixel<T, R>(row: usize, col: usize, camera: &Camera, world: &T, rng: &mut R) -> Rgb
 where
-    T: Hittable + ?Sized + Send + Sync + 'static,
+    T: Hittable,
+    R: Rng,
 {
-    const SIZE: usize = IMG_WIDTH as usize;
+    let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+    for _ in 0..SAMPLES_PER_PIXEL {
+        let u = (col as f64 + rng.gen::<f64>()) / (IMG_WIDTH as f64 - 1.0);
+        let v = (row as f64 + rng.gen::<f64>()) / (IMG_HEIGHT as f64 - 1.0);
 
-    thread::spawn(move || {
-        let mut rand = rand::thread_rng();
+        let ray = camera.get_ray(u, v);
 
-        for jdx in (0..IMG_HEIGHT).filter(|x| x.rem_euclid(threads) == id) {
-            let j = jdx as f64;
+        pixel_color += ray_color(&ray, world, MAX_DEPTH);
+    }
 
-            let mut row: [MaybeUninit<Rgb>; SIZE] = unsafe { MaybeUninit::uninit().assume_init() };
-            for (idx, elem) in row.iter_mut().enumerate() {
-                let i = idx as f64;
-
-                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
-                for _ in 0..SAMPLES_PER_PIXEL {
-                    let u = (i + rand.gen::<f64>()) / (IMG_WIDTH as f64 - 1.0);
-                    let v = (j + rand.gen::<f64>()) / (IMG_HEIGHT as f64 - 1.0);
-
-                    let ray = camera.get_ray(u, v);
-
-                    pixel_color += ray_color(&ray, &world, MAX_DEPTH);
-                }
-
-                let rgb = color_to_rgb(pixel_color, SAMPLES_PER_PIXEL);
-                *elem = MaybeUninit::new(rgb);
-            }
-
-            let row = unsafe { std::mem::transmute::<_, [Rgb; SIZE]>(row) };
-
-            sender.send((jdx, row)).unwrap();
-        }
-    })
+    color_to_rgb(pixel_color, SAMPLES_PER_PIXEL)
 }
 
-fn ray_color<T: Hittable + ?Sized>(ray: &Ray, world: &Arc<T>, depth: i32) -> Color {
+fn ray_color<T: Hittable>(ray: &Ray, world: &T, depth: i32) -> Color {
     if depth <= 0 {
         return Color::new(0.0, 0.0, 0.0);
     }
