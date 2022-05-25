@@ -22,6 +22,7 @@ pub fn color_to_rgb(pixel_color: Color, samples_per_pixel: u32) -> image::Rgb<u8
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct Camera {
     origin: Point3,
     lower_left_corner: Point3,
@@ -78,9 +79,10 @@ impl Camera {
 
         Ray {
             origin: self.origin + on_plane,
-            direction: self.lower_left_corner + s * self.horizontal + t * self.vertical
+            direction: (self.lower_left_corner + s * self.horizontal + t * self.vertical
                 - self.origin
-                - on_plane,
+                - on_plane)
+                .normalize(),
         }
     }
 }

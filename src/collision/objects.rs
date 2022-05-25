@@ -52,71 +52,40 @@ impl Hittable for Sphere {
 }
 
 #[derive(Clone)]
-pub struct Torus {
-    pub center: Point3,
-    pub major: f64, // commonly R
-    pub minor: f64, // commonly r
+pub struct ImplicitMarched {
+    pub dist: fn(pt: Vec3) -> f64,
+    pub max_dist: fn(pt: Vec3) -> f64,
     pub material: Arc<dyn Material>,
 }
 
-impl Hittable for Torus {
+impl Hittable for ImplicitMarched {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<Hit> {
-        let oc = ray.origin - self.center;
+        let max_dist = (self.max_dist)(ray.origin);
 
-        let alpha = ray.direction.length_squared();
-        let beta = 2.0 * oc.dot(&ray.direction);
-        let gamma = oc.length_squared() + self.major * self.major - self.minor * self.minor;
+        let mut t = t_min;
+        while t < max_dist && t < t_max {
+            let pt = ray.at(t);
+            let dist = (self.dist)(pt);
 
-        let mut o2 = oc;
-        o2.0[2] = 0.0;
+            if dist < 1e-10 {
+                let [x, y, z] = pt.0;
+                let h = 0.0001;
+                let normal = Vec3::new(
+                    ((self.dist)(Vec3::new(x + h, y, z)) - (self.dist)(Vec3::new(x - h, y, z)))
+                        / (2.0 * h),
+                    ((self.dist)(Vec3::new(x, y + h, z)) - (self.dist)(Vec3::new(x, y - h, z)))
+                        / (2.0 * h),
+                    ((self.dist)(Vec3::new(x, y, z + h)) - (self.dist)(Vec3::new(x, y, z - h)))
+                        / (2.0 * h),
+                )
+                .normalize();
+                return Some(Hit::with_face_normal(ray, normal, t, self.material.clone()));
+            }
 
-        let mut d2 = ray.direction;
-        d2.0[2] = 0.0;
-
-        #[allow(non_snake_case)]
-        let R2_4 = 4.0 * self.major * self.major;
-
-        let a4 = alpha * alpha;
-        let a3 = 2.0 * alpha * beta;
-        let a2 = 2.0 * alpha * gamma + beta * beta - R2_4 * d2.length_squared();
-        let a1 = 2.0 * (beta * gamma - R2_4 * o2.dot(&d2));
-        let a0 = gamma * gamma - R2_4 * o2.length_squared();
-
-        let mut companion = nalgebra::Matrix5::from_fn(|i, j| (i == j + 1) as u8 as f64);
-        companion.set_column(4, &[-a0, -a1, -a2, -a3, -a4].into());
-
-        let solution = companion
-            .complex_eigenvalues()
-            .iter()
-            .copied()
-            .filter_map(|eigen| {
-                if eigen.im.abs() > 1e-15 {
-                    return None;
-                }
-                let re = eigen.re;
-                if !(t_min..t_max).contains(&re) {
-                    return None;
-                }
-                Some(re)
-            })
-            .fold(f64::INFINITY, |a, b| a.min(b));
-
-        if solution.is_infinite() {
-            return None;
+            t += dist;
         }
 
-        let pt = ray.at(solution) - self.center;
-        let (x, y) = (pt.x(), pt.y());
-        let coeff = self.major * self.major / (x * x + y * y).sqrt();
-
-        let normal = Vec3::new(1.0 - coeff * x, 1.0 - coeff * y, pt.z()).normalize();
-
-        Some(Hit::with_face_normal(
-            ray,
-            normal,
-            solution,
-            self.material.clone(),
-        ))
+        None
     }
 }
 

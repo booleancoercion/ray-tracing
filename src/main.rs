@@ -26,68 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // World
 
-    let world = {
-        let mut world: Vec<Arc<dyn Hittable + Send + Sync>> = Vec::new();
-
-        let yellow_diffuse = Arc::new(Lambertian {
-            albedo: Color::new(0.8, 0.8, 0.0),
-        });
-        let red_diffuse = Arc::new(Lambertian {
-            albedo: Color::new(0.8, 0.1, 0.1),
-        });
-        let blue_diffuse = Arc::new(Lambertian {
-            albedo: Color::new(0.1, 0.1, 0.8),
-        });
-        let glass = Arc::new(Dielectric { ri: 1.5 });
-        let anti_glass = Arc::new(Dielectric { ri: 1.0 / 1.3 });
-        let metal = Arc::new(Metal::new(Color::new(1.0, 1.0, 1.0), 0.1));
-
-        world.push(Arc::new(Sphere {
-            // ground
-            center: Point3::new(0.0, -100.5, 0.0),
-            radius: 100.0,
-            material: yellow_diffuse,
-        }));
-
-        world.push(Arc::new(Sphere {
-            center: Point3::new(0.0, 0.0, -1.5),
-            radius: 0.5,
-            material: blue_diffuse,
-        }));
-
-        world.push(Arc::new(Torus {
-            center: Point3::new(1.0, 0.0, -1.5),
-            major: 0.5,
-            minor: 0.3,
-            material: red_diffuse,
-        }));
-
-        /*world.push(Arc::new(Parallelogram::new(
-            Point3::new(0.5, -0.5, -1.0),
-            Vec3::new(1.0, 0.0, 0.0),
-            Vec3::new(0.0, 1.0, 0.0),
-            Vec3::new(0.0, 0.0, -1.0),
-            glass,
-        )));
-
-        world.push(Arc::new(Sphere {
-            center: Point3::new(1.0, 0.0, -1.5),
-            radius: 0.3,
-            material: red_diffuse,
-        }));*/
-
-        /*
-        world.push(Arc::new(Parallelogram::new(
-            Point3::new(0.6, -0.4, -1.1),
-            Vec3::new(0.8, 0.0, 0.0),
-            Vec3::new(0.0, 0.8, 0.0),
-            Vec3::new(0.0, 0.0, -0.8),
-            anti_glass,
-        )));
-        */
-
-        Arc::new(world)
-    };
+    let world = Arc::new(generate_world());
 
     // Camera
 
@@ -201,7 +140,92 @@ fn ray_color<T: Hittable + ?Sized>(ray: &Ray, world: &Arc<T>, depth: i32) -> Col
     (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
 }
 
-pub fn generate_weekend_cover_world() -> Arc<Vec<Sphere>> {
+#[allow(unused_variables)]
+#[allow(non_upper_case_globals)]
+fn generate_world() -> Vec<Arc<dyn Hittable + Send + Sync>> {
+    let mut world: Vec<Arc<dyn Hittable + Send + Sync>> = Vec::new();
+
+    let yellow_diffuse = Arc::new(Lambertian {
+        albedo: Color::new(0.8, 0.8, 0.0),
+    });
+    let red_diffuse = Arc::new(Lambertian {
+        albedo: Color::new(0.8, 0.1, 0.1),
+    });
+    let blue_diffuse = Arc::new(Lambertian {
+        albedo: Color::new(0.1, 0.1, 0.8),
+    });
+    let glass = Arc::new(Dielectric { ri: 1.5 });
+    let anti_glass = Arc::new(Dielectric { ri: 1.0 / 1.3 });
+    let metal = Arc::new(Metal::new(Color::new(1.0, 1.0, 1.0), 0.1));
+
+    world.push(Arc::new(Sphere {
+        // ground
+        center: Point3::new(0.0, -100.5, 0.0),
+        radius: 100.0,
+        material: yellow_diffuse,
+    }));
+
+    world.push(Arc::new(Sphere {
+        center: Point3::new(0.0, 0.0, -1.5),
+        radius: 0.5,
+        material: blue_diffuse,
+    }));
+
+    const r: f64 = 0.2;
+    const R: f64 = 0.6;
+    const offset: [f64; 3] = [1.0, 0.0, -1.5];
+
+    world.push(Arc::new(ImplicitMarched {
+        dist: |v| {
+            let [x, y, z] = (v - Vec3(offset)).0;
+
+            (((x * x + z * z).sqrt() - R * R).powi(2) + y * y).sqrt() - r
+        },
+        max_dist: |v| 2.0 * ((v - Vec3(offset)).length() + r + R),
+        material: metal,
+    }));
+
+    world.push(Arc::new(Sphere {
+        center: Vec3(offset),
+        radius: 0.05,
+        material: red_diffuse,
+    }));
+
+    /*world.push(Arc::new(ImplicitMarched {
+        dist: |v| v.length() - 0.3,
+        max_dist: |v| v.length() + 0.6,
+        material: red_diffuse,
+    }));*/
+
+    /*world.push(Arc::new(Parallelogram::new(
+        Point3::new(0.5, -0.5, -1.0),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec3::new(0.0, 0.0, -1.0),
+        glass,
+    )));
+
+    world.push(Arc::new(Sphere {
+        center: Point3::new(1.0, 0.0, -1.5),
+        radius: 0.3,
+        material: red_diffuse,
+    }));*/
+
+    /*
+    world.push(Arc::new(Parallelogram::new(
+        Point3::new(0.6, -0.4, -1.1),
+        Vec3::new(0.8, 0.0, 0.0),
+        Vec3::new(0.0, 0.8, 0.0),
+        Vec3::new(0.0, 0.0, -0.8),
+        anti_glass,
+    )));
+    */
+
+    world
+}
+
+#[allow(dead_code)]
+fn generate_weekend_cover_world() -> Arc<Vec<Sphere>> {
     let mut rand = rand::thread_rng();
     let mut world = Vec::new();
 

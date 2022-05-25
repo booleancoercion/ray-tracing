@@ -37,7 +37,7 @@ impl Vec3 {
 
     #[inline(always)]
     pub fn length_squared(&self) -> f64 {
-        self.dot(&self)
+        self.dot(self)
     }
 
     #[inline(always)]
