@@ -55,7 +55,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             material: blue_diffuse,
         }));
 
-        world.push(Arc::new(Parallelogram::new(
+        world.push(Arc::new(Torus {
+            center: Point3::new(1.0, 0.0, -1.5),
+            major: 0.5,
+            minor: 0.3,
+            material: red_diffuse,
+        }));
+
+        /*world.push(Arc::new(Parallelogram::new(
             Point3::new(0.5, -0.5, -1.0),
             Vec3::new(1.0, 0.0, 0.0),
             Vec3::new(0.0, 1.0, 0.0),
@@ -67,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             center: Point3::new(1.0, 0.0, -1.5),
             radius: 0.3,
             material: red_diffuse,
-        }));
+        }));*/
 
         /*
         world.push(Arc::new(Parallelogram::new(
@@ -94,7 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     */
 
     let camera = Arc::new(Camera::new(
-        Point3::new(4.0, 1.3, 2.2),
+        Point3::new(8.0, 2.6, 4.4),
         Point3::new(1.0, 0.0, -1.5),
         Vec3::new(0.0, 1.0, 0.0),
         20.0,
